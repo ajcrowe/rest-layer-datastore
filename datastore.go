@@ -9,7 +9,13 @@ import (
 	"github.com/rs/rest-layer/resource"
 	"golang.org/x/net/context"
 	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
 )
+
+// Wrap datastore.NewClient to avoid user having to import this
+func NewClient(ctx context.Context, projectID string, opts ...option.ClientOption) (*datastore.Client, error) {
+	return datastore.NewClient(ctx, projectID, opts...)
+}
 
 // Handler handles resource storage in Google Datastore.
 type Handler struct {
