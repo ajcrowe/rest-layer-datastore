@@ -9,21 +9,21 @@ type Fields map[string]Field
 // Wrap common schema fields from rest-layer
 var (
 	IDField = Field{
-		IDField,
+		Field: schema.IDField,
 	}
 
 	CreatedField = Field{
-		schema.CreatedField,
+		Field:   schema.CreatedField,
 		NoIndex: true,
 	}
 
 	UpdatedField = Field{
-		schema.UpdatedField,
+		Field:   schema.UpdatedField,
 		NoIndex: true,
 	}
 
 	PasswordField = Field{
-		schema.PasswordField,
+		Field:   schema.PasswordField,
 		NoIndex: true,
 	}
 )
