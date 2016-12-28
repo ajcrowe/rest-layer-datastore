@@ -3,11 +3,10 @@ package datastore
 import (
 	"time"
 
-	//"github.com/davecgh/go-spew/spew"
+	"context"
 
 	"cloud.google.com/go/datastore"
 	"github.com/rs/rest-layer/resource"
-	"golang.org/x/net/context"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 )
@@ -62,7 +61,7 @@ func (e *Entity) Load(ps []datastore.Property) error {
 	return nil
 }
 
-// Load implements the PropertyLoadSaver interface to process our dynamic payload data
+// Save implements the PropertyLoadSaver interface to process our dynamic payload data
 // see https://godoc.org/cloud.google.com/go/datastore#hdr-The_PropertyLoadSaver_Interface
 func (e *Entity) Save() ([]datastore.Property, error) {
 	// Create our default struct properties
@@ -146,9 +145,8 @@ func (d *Handler) Update(ctx context.Context, item *resource.Item, original *res
 		if err = tx.Get(key, &current); err != nil {
 			if err == datastore.ErrNoSuchEntity {
 				return resource.ErrNotFound
-			} else {
-				return err
 			}
+			return err
 		}
 		if current.ETag != original.ETag {
 			return resource.ErrConflict
@@ -174,9 +172,8 @@ func (d *Handler) Delete(ctx context.Context, item *resource.Item) error {
 		if err = tx.Get(key, &e); err != nil {
 			if err == datastore.ErrNoSuchEntity {
 				return resource.ErrNotFound
-			} else {
-				return err
 			}
+			return err
 		}
 		if e.ETag != item.ETag {
 			return resource.ErrConflict
@@ -221,18 +218,14 @@ func (d *Handler) Clear(ctx context.Context, lookup *resource.Lookup) (int, erro
 }
 
 // Find entities matching the provided lookup from the Datastore
-func (d *Handler) Find(ctx context.Context, lookup *resource.Lookup, page, perPage int) (*resource.ItemList, error) {
+func (d *Handler) Find(ctx context.Context, lookup *resource.Lookup, offset, limit int) (*resource.ItemList, error) {
 	q, err := getQuery(d.entity, lookup)
 	if err != nil {
 		return nil, err
 	}
 
-	if perPage >= 0 {
-		q = q.Offset((page - 1) * perPage).Limit(perPage)
-	}
-
 	// TODO: Apply context deadline if any.
-	list := &resource.ItemList{Page: page, Total: -1, Items: []*resource.Item{}}
+	list := &resource.ItemList{Total: -1, Offset: offset, Limit: limit, Items: []*resource.Item{}}
 	for t := d.client.Run(ctx, q); ; {
 		var e Entity
 		_, terr := t.Next(&e)
