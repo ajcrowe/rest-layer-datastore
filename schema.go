@@ -1,5 +1,6 @@
 package datastore
 
+/*
 import (
 	"github.com/rs/rest-layer/schema"
 )
@@ -32,3 +33,4 @@ type Field struct {
 	schema.Field
 	NoIndex bool
 }
+*/
