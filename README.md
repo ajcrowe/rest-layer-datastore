@@ -29,7 +29,7 @@ Then use this to create a new `Handler` for your resource binds
 namespace := "default"
 entity := "users"
 // bind the users resource with the datastore handler
-index.Bind("users", user, datastore.NewHandler(client, namespace, entity), resource.Default)
+index.Bind("users", user, datastore.NewHandler(client, namespace, entity), resource.DefaultConf)
 ```
 
 You can also set a number of Datastore properties which you would like to exclude from being indexed with `SetNoIndexProperties` on your `handler` struct.
