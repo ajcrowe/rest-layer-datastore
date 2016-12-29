@@ -18,9 +18,14 @@ func NewClient(ctx context.Context, projectID string, opts ...option.ClientOptio
 
 // Handler handles resource storage in Google Datastore.
 type Handler struct {
-	client    *datastore.Client
-	entity    string
+	// datastore.Client struct for executing our queries.
+	client *datastore.Client
+	// Kind of the entity this handler will create.
+	entity string
+	// Namespace in which these entities will be.
 	namespace string
+	// Properties which should not be indexed.
+	noIndexProps map[string]bool
 }
 
 // NewHandler creates a new Google Datastore handler
@@ -34,10 +39,11 @@ func NewHandler(client *datastore.Client, namespace, entity string) *Handler {
 
 // Entity Is a representation of a Google Datastore entity
 type Entity struct {
-	ID      string
-	ETag    string
-	Updated time.Time
-	Payload map[string]interface{}
+	ID           string
+	ETag         string
+	Updated      time.Time
+	Payload      map[string]interface{}
+	NoIndexProps map[string]bool
 }
 
 // Load implements the PropertyLoadSaver interface to process our dynamic payload data
@@ -82,28 +88,13 @@ func (e *Entity) Save() ([]datastore.Property, error) {
 	// Range over the payload and create the datastore.Properties
 	for k, v := range e.Payload {
 		prop := datastore.Property{
-			Name:  k,
-			Value: v,
+			Name:    k,
+			Value:   v,
+			NoIndex: e.NoIndexProps[k],
 		}
 		ps = append(ps, prop)
 	}
 	return ps, nil
-}
-
-// newEntity converts a resource.Item into a Google datastore entity
-func newEntity(i *resource.Item) *Entity {
-	p := make(map[string]interface{}, len(i.Payload))
-	for k, v := range i.Payload {
-		if k != "id" {
-			p[k] = v
-		}
-	}
-	return &Entity{
-		ID:      i.ID.(string),
-		ETag:    i.ETag,
-		Updated: i.Updated,
-		Payload: p,
-	}
 }
 
 // newItem converts datastore entity into a resource.Item
@@ -117,6 +108,32 @@ func newItem(e *Entity) *resource.Item {
 	}
 }
 
+// newEntity converts a resource.Item into a Google datastore entity
+func (d *Handler) newEntity(i *resource.Item) *Entity {
+	p := make(map[string]interface{}, len(i.Payload))
+	for k, v := range i.Payload {
+		if k != "id" {
+			p[k] = v
+		}
+	}
+	return &Entity{
+		ID:           i.ID.(string),
+		ETag:         i.ETag,
+		Updated:      i.Updated,
+		Payload:      p,
+		NoIndexProps: d.noIndexProps,
+	}
+}
+
+// SetNoIndexProps sets the handlers properties which should have noindex set.
+func (d *Handler) SetNoIndexProperties(props []string) {
+	p := make(map[string]int, len(props))
+	for v, i := range props {
+		p[v] = true
+	}
+	d.noIndexProps = p
+}
+
 // Insert inserts new entities
 func (d *Handler) Insert(ctx context.Context, items []*resource.Item) error {
 	mKeys := make([]*datastore.Key, len(items))
@@ -124,7 +141,7 @@ func (d *Handler) Insert(ctx context.Context, items []*resource.Item) error {
 
 	for i, item := range items {
 		mKeys[i] = datastore.NameKey(d.entity, item.ID.(string), nil)
-		mEntities[i] = newEntity(item)
+		mEntities[i] = d.newEntity(item)
 	}
 	_, err := d.client.PutMulti(ctx, mKeys, mEntities)
 	return err
@@ -134,7 +151,7 @@ func (d *Handler) Insert(ctx context.Context, items []*resource.Item) error {
 func (d *Handler) Update(ctx context.Context, item *resource.Item, original *resource.Item) error {
 	var err error
 
-	entity := newEntity(item)
+	entity := d.newEntity(item)
 	// Run a transaction to update the Entity if the Entity exist and the ETags match
 	tx := func(tx *datastore.Transaction) error {
 		// Create a key for our current Entity
