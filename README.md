@@ -36,9 +36,8 @@ You can also set a number of Datastore properties which you would like to exclud
 
 ```go
 // create a handler for the resource.
-handler := datastore.NewHandler(client, namespace, entity)
-// set fields to not be indexed
-handler.SetNoIndexProperties([]string{"prop1", "prop2"})
+index.Bind("users", user, datastore.NewHandler(client, namespace, entity).SetNoIndexProperties([]string{"prop1", "prop2"}), resource.DefaultConf)
+
 ```
 
 ## Supported filter operators

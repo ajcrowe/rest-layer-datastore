@@ -126,12 +126,13 @@ func (d *Handler) newEntity(i *resource.Item) *Entity {
 }
 
 // SetNoIndexProps sets the handlers properties which should have noindex set.
-func (d *Handler) SetNoIndexProperties(props []string) {
+func (d *Handler) SetNoIndexProperties(props []string) *Handler {
 	p := make(map[string]bool, len(props))
 	for _, v := range props {
 		p[v] = true
 	}
 	d.noIndexProps = p
+	return d
 }
 
 // Insert inserts new entities
