@@ -12,6 +12,12 @@ This backend used [cmorent/rest-layer-datastore](https://github.com/cmorent/rest
 import "github.com/ajcrowe/rest-layer-datastore"
 ```
 
+Or use `gopkg.in` for a more stable v1 release
+
+```go
+import "gopkg.in/ajcrowe/rest-layer-datastore.v1"
+```
+
 Create a datastore client
 
 ```go
