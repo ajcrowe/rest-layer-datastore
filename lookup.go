@@ -2,8 +2,7 @@ package datastore
 
 import (
 	"fmt"
-
-	//"github.com/davecgh/go-spew/spew"
+	"reflect"
 
 	"cloud.google.com/go/datastore"
 	"github.com/rs/rest-layer/resource"
@@ -45,7 +44,14 @@ func translateQuery(dsQuery *datastore.Query, q schema.Query) (*datastore.Query,
 	for _, exp := range q {
 		switch t := exp.(type) {
 		case schema.Equal:
-			dsQuery = dsQuery.Filter(fmt.Sprintf("%s =", getField(t.Field)), t.Value)
+			// If our Query contains a slice, add each as an additional filter
+			if reflect.TypeOf(t.Value).Kind() == reflect.Slice {
+				for _, v := range t.Value.([]interface{}) {
+					dsQuery = dsQuery.Filter(fmt.Sprintf("%s =", getField(t.Field)), v)
+				}
+			} else {
+				dsQuery = dsQuery.Filter(fmt.Sprintf("%s =", getField(t.Field)), t.Value)
+			}
 		case schema.NotEqual:
 			dsQuery = dsQuery.Filter(fmt.Sprintf("%s !=", getField(t.Field)), t.Value)
 		case schema.GreaterThan:

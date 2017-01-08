@@ -1,9 +1,8 @@
 package datastore
 
 import (
-	"time"
-
 	"context"
+	"time"
 
 	"cloud.google.com/go/datastore"
 	"github.com/rs/rest-layer/resource"
@@ -250,10 +249,10 @@ func (d *Handler) Find(ctx context.Context, lookup *resource.Lookup, offset, lim
 		if terr == iterator.Done {
 			break
 		}
-		if terr = ctx.Err(); err != nil {
+		if terr != nil {
 			return nil, terr
 		}
-		if terr != nil {
+		if terr = ctx.Err(); terr != nil {
 			return nil, terr
 		}
 		list.Items = append(list.Items, newItem(&e))
