@@ -141,6 +141,7 @@ func (d *Handler) Insert(ctx context.Context, items []*resource.Item) error {
 
 	for i, item := range items {
 		mKeys[i] = datastore.NameKey(d.entity, item.ID.(string), nil)
+		mKeys[i].Namespace = d.namespace
 		mEntities[i] = d.newEntity(item)
 	}
 	_, err := d.client.PutMulti(ctx, mKeys, mEntities)
@@ -156,6 +157,7 @@ func (d *Handler) Update(ctx context.Context, item *resource.Item, original *res
 	tx := func(tx *datastore.Transaction) error {
 		// Create a key for our current Entity
 		key := datastore.NameKey(d.entity, original.ID.(string), nil)
+		key.Namespace = d.namespace
 
 		var current Entity
 		// Attempt to get the existing Entity
@@ -183,6 +185,7 @@ func (d *Handler) Delete(ctx context.Context, item *resource.Item) error {
 	tx := func(tx *datastore.Transaction) error {
 		// Create a key for our target Entity
 		key := datastore.NameKey(d.entity, item.ID.(string), nil)
+		key.Namespace = d.namespace
 
 		var e Entity
 		// Attempt to get the existing Entity
@@ -205,7 +208,7 @@ func (d *Handler) Delete(ctx context.Context, item *resource.Item) error {
 
 // Clear clears all entities matching the lookup from the Datastore
 func (d *Handler) Clear(ctx context.Context, lookup *resource.Lookup) (int, error) {
-	q, err := getQuery(d.entity, lookup)
+	q, err := getQuery(d.entity, d.namespace, lookup)
 	if err != nil {
 		return 0, err
 	}
@@ -236,7 +239,7 @@ func (d *Handler) Clear(ctx context.Context, lookup *resource.Lookup) (int, erro
 
 // Find entities matching the provided lookup from the Datastore
 func (d *Handler) Find(ctx context.Context, lookup *resource.Lookup, offset, limit int) (*resource.ItemList, error) {
-	q, err := getQuery(d.entity, lookup)
+	q, err := getQuery(d.entity, d.namespace, lookup)
 	if err != nil {
 		return nil, err
 	}

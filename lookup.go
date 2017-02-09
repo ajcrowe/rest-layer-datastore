@@ -28,13 +28,14 @@ func getField(f string) string {
 }
 
 // getQuery transform a resource.Lookup into a Google Datastore query
-func getQuery(e string, l *resource.Lookup) (*datastore.Query, error) {
+func getQuery(e string, ns string, l *resource.Lookup) (*datastore.Query, error) {
 	query, err := translateQuery(datastore.NewQuery(e), l.Filter())
-
 	// if lookup specifies sorting add this to our query
 	if len(l.Sort()) > 0 {
 		query = getSort(query, l.Sort())
 	}
+	// Set namespace for this query
+	query = query.Namespace(ns)
 	return query, err
 }
 
