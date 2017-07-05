@@ -6,7 +6,7 @@ import (
 
 	"cloud.google.com/go/datastore"
 	"github.com/rs/rest-layer/resource"
-	"github.com/rs/rest-layer/schema"
+	"github.com/rs/rest-layer/schema/query"
 )
 
 // getSort transform a resource.Lookup into a Datastore sort list.
@@ -39,12 +39,12 @@ func getQuery(e string, ns string, l *resource.Lookup) (*datastore.Query, error)
 	return query, err
 }
 
-func translateQuery(dsQuery *datastore.Query, q schema.Query) (*datastore.Query, error) {
+func translateQuery(dsQuery *datastore.Query, q query.Query) (*datastore.Query, error) {
 	var err error
 	// process each schema.Expression into a datastore filter
 	for _, exp := range q {
 		switch t := exp.(type) {
-		case schema.Equal:
+		case query.Equal:
 			// If our Query contains a slice, add each as an additional filter
 			if reflect.TypeOf(t.Value).Kind() == reflect.Slice {
 				for _, v := range t.Value.([]interface{}) {
@@ -53,19 +53,19 @@ func translateQuery(dsQuery *datastore.Query, q schema.Query) (*datastore.Query,
 			} else {
 				dsQuery = dsQuery.Filter(fmt.Sprintf("%s =", getField(t.Field)), t.Value)
 			}
-		case schema.NotEqual:
+		case query.NotEqual:
 			dsQuery = dsQuery.Filter(fmt.Sprintf("%s !=", getField(t.Field)), t.Value)
-		case schema.GreaterThan:
+		case query.GreaterThan:
 			dsQuery = dsQuery.Filter(fmt.Sprintf("%s >", getField(t.Field)), t.Value)
-		case schema.GreaterOrEqual:
+		case query.GreaterOrEqual:
 			dsQuery = dsQuery.Filter(fmt.Sprintf("%s >=", getField(t.Field)), t.Value)
-		case schema.LowerThan:
+		case query.LowerThan:
 			dsQuery = dsQuery.Filter(fmt.Sprintf("%s <", getField(t.Field)), t.Value)
-		case schema.LowerOrEqual:
+		case query.LowerOrEqual:
 			dsQuery = dsQuery.Filter(fmt.Sprintf("%s <=", getField(t.Field)), t.Value)
-		case schema.And:
+		case query.And:
 			for _, subExp := range t {
-				dsQuery, err = translateQuery(dsQuery, schema.Query{subExp})
+				dsQuery, err = translateQuery(dsQuery, query.Query{subExp})
 				if err != nil {
 					return nil, err
 				}
