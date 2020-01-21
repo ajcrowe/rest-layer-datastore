@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+  "github.com/rs/rest-layer/schema/query"
 	"cloud.google.com/go/datastore"
 	"github.com/rs/rest-layer/resource"
 	"google.golang.org/api/iterator"
@@ -207,13 +208,17 @@ func (d *Handler) Delete(ctx context.Context, item *resource.Item) error {
 }
 
 // Clear clears all entities matching the lookup from the Datastore
-func (d *Handler) Clear(ctx context.Context, lookup *resource.Lookup) (int, error) {
-	q, err := getQuery(d.entity, d.namespace, lookup)
+func (d *Handler) Clear(ctx context.Context, q *query.Query) (int, error) {
+	qry, err := getQuery(d.entity, d.namespace, q)
 	if err != nil {
 		return 0, err
 	}
 
-	c, err := d.client.Count(ctx, q)
+	if q.Window != nil {
+		qry = applyWindow(qry, *q.Window)
+	}
+
+	c, err := d.client.Count(ctx, qry)
 	if err != nil {
 		return 0, err
 	}
@@ -221,13 +226,13 @@ func (d *Handler) Clear(ctx context.Context, lookup *resource.Lookup) (int, erro
 	// TODO: Check wheter if DeleteMulti is better here than delete on every
 	// iteration here or not.
 	mKeys := make([]*datastore.Key, c)
-	for t, i := d.client.Run(ctx, q), 0; ; i++ {
+	for t, i := d.client.Run(ctx, qry), 0; ; i++ {
 		var e Entity
 		key, err := t.Next(&e)
-		mKeys[i] = key
 		if err == iterator.Done {
 			break
 		}
+		mKeys[i] = key
 	}
 
 	err = d.client.DeleteMulti(ctx, mKeys)
@@ -238,15 +243,33 @@ func (d *Handler) Clear(ctx context.Context, lookup *resource.Lookup) (int, erro
 }
 
 // Find entities matching the provided lookup from the Datastore
-func (d *Handler) Find(ctx context.Context, lookup *resource.Lookup, offset, limit int) (*resource.ItemList, error) {
-	q, err := getQuery(d.entity, d.namespace, lookup)
+func (d *Handler) Find(ctx context.Context, q *query.Query) (*resource.ItemList, error) {
+	qry, err := getQuery(d.entity, d.namespace, q)
 	if err != nil {
 		return nil, err
 	}
+	offset := 0; limit := -1
+
+	if q.Window != nil && q.Window.Offset > 0 {
+		offset = q.Window.Offset
+	}
+
+	if q.Window != nil && q.Window.Limit > -1 {
+		limit = q.Window.Limit
+	}
 
 	// TODO: Apply context deadline if any.
-	list := &resource.ItemList{Total: -1, Offset: offset, Limit: limit, Items: []*resource.Item{}}
-	for t := d.client.Run(ctx, q); ; {
+	list := &resource.ItemList{
+		Total: -1,
+		Offset: offset,
+		Limit: limit,
+		Items: []*resource.Item{},
+	}
+	if q.Window != nil {
+		qry = applyWindow(qry, *q.Window)
+	}
+
+	for t := d.client.Run(ctx, qry); ; {
 		var e Entity
 		_, terr := t.Next(&e)
 		if terr == iterator.Done {
@@ -261,4 +284,14 @@ func (d *Handler) Find(ctx context.Context, lookup *resource.Lookup, offset, lim
 		list.Items = append(list.Items, newItem(&e))
 	}
 	return list, nil
+}
+
+func applyWindow(qry *datastore.Query, w query.Window) *datastore.Query {
+	if w.Offset > 0 {
+		qry = qry.Offset(w.Offset)
+	}
+	if w.Limit > -1 {
+		qry = qry.Limit(w.Limit)
+	}
+	return qry
 }
