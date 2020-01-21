@@ -30,6 +30,9 @@ func getField(f string) string {
 // getQuery transform a resource.Lookup into a Google Datastore query
 func getQuery(e string, ns string, q *query.Query) (*datastore.Query, error) {
 	query, err := translateQuery(datastore.NewQuery(e), q.Predicate)
+	if err != nil {
+		return nil, err
+	}
 	// if lookup specifies sorting add this to our query
 	if len(q.Sort) > 0 {
 		s := make([]string, len(q.Sort))
