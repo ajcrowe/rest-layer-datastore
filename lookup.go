@@ -28,23 +28,31 @@ func getField(f string) string {
 }
 
 // getQuery transform a resource.Lookup into a Google Datastore query
-func getQuery(e string, ns string, l *resource.Lookup) (*datastore.Query, error) {
-	query, err := translateQuery(datastore.NewQuery(e), l.Filter())
+func getQuery(e string, ns string, q *query.Query) (*datastore.Query, error) {
+	query, err := translateQuery(datastore.NewQuery(e), q.Predicate)
 	// if lookup specifies sorting add this to our query
-	if len(l.Sort()) > 0 {
-		query = getSort(query, l.Sort())
+	if len(q.Sort) > 0 {
+		s := make([]string, len(q.Sort))
+		for i, sort := range q.Sort {
+			if sort.Reversed {
+				s[i] = "-" + getField(sort.Name)
+			} else {
+				s[i] = getField(sort.Name)
+			}
+		}
+		query = getSort(query, s)
 	}
 	// Set namespace for this query
 	query = query.Namespace(ns)
 	return query, err
 }
 
-func translateQuery(dsQuery *datastore.Query, q query.Query) (*datastore.Query, error) {
+func translateQuery(dsQuery *datastore.Query, q query.Predicate) (*datastore.Query, error) {
 	var err error
 	// process each schema.Expression into a datastore filter
 	for _, exp := range q {
 		switch t := exp.(type) {
-		case query.Equal:
+		case *query.Equal:
 			// If our Query contains a slice, add each as an additional filter
 			if reflect.TypeOf(t.Value).Kind() == reflect.Slice {
 				for _, v := range t.Value.([]interface{}) {
@@ -53,19 +61,19 @@ func translateQuery(dsQuery *datastore.Query, q query.Query) (*datastore.Query, 
 			} else {
 				dsQuery = dsQuery.Filter(fmt.Sprintf("%s =", getField(t.Field)), t.Value)
 			}
-		case query.NotEqual:
+		case *query.NotEqual:
 			dsQuery = dsQuery.Filter(fmt.Sprintf("%s !=", getField(t.Field)), t.Value)
-		case query.GreaterThan:
+		case *query.GreaterThan:
 			dsQuery = dsQuery.Filter(fmt.Sprintf("%s >", getField(t.Field)), t.Value)
-		case query.GreaterOrEqual:
+		case *query.GreaterOrEqual:
 			dsQuery = dsQuery.Filter(fmt.Sprintf("%s >=", getField(t.Field)), t.Value)
-		case query.LowerThan:
+		case *query.LowerThan:
 			dsQuery = dsQuery.Filter(fmt.Sprintf("%s <", getField(t.Field)), t.Value)
-		case query.LowerOrEqual:
+		case *query.LowerOrEqual:
 			dsQuery = dsQuery.Filter(fmt.Sprintf("%s <=", getField(t.Field)), t.Value)
-		case query.And:
-			for _, subExp := range t {
-				dsQuery, err = translateQuery(dsQuery, query.Query{subExp})
+		case *query.And:
+			for _, subExp := range *t {
+				dsQuery, err = translateQuery(dsQuery, query.Predicate{subExp})
 				if err != nil {
 					return nil, err
 				}
